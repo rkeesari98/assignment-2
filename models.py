@@ -1,12 +1,11 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
-from datetime import date
+from datetime import date, time
 
 class TaskBoard(BaseModel):
     title:str
     created_by:str
-    tasks:List[str]
     users:List[str]
     
 class User(BaseModel):
@@ -14,8 +13,10 @@ class User(BaseModel):
     email:str
 
 class Task(BaseModel):
-    name:str
+    title:str
     status:str
     details:str
     assigned_to:List[str]
-    due_date:date
+    board_id:str
+    due_date:Optional[date] = None
+    due_time: Optional[time] = None

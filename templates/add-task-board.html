@@ -1,0 +1,120 @@
+{% extends "home.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="display-5 mb-4">{% if board %}Update Task Board{% else %}Create New Task Board{% endif %}</h1>
+    
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form action="{% if board %}/tasksboards/{{ board.id }}{% else %}/tasksboards/create{% endif %}" method="post" class="add-form">
+                <div class="mb-3">
+                    <label for="title" class="form-label fw-bold">Board Title:</label>
+                    <input type="text" class="form-control form-control-lg" id="title" name="title" value="{{ board.title if board else '' }}" required>
+                    <div class="form-text text-muted mt-2">Give your task board a descriptive name</div>
+                </div>
+                
+                <!-- Creator information field - hidden but included for completeness -->
+                <input type="hidden" id="created_by" name="created_by" value="{{ current_user.email }}">
+                
+                <div class="mb-4 mt-4">
+                    <label class="form-label fw-bold">Board Members:</label>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Select users who should have access to this task board
+                    </div>
+                    
+                    <!-- Display list of all available users with checkboxes -->
+                    <div class="list-group" id="users-list">
+                        {% for user in users %}
+                        <div class="list-group-item">
+                            <div class="form-check">
+                                <input class="form-check-input user-checkbox" type="checkbox" 
+                                    value="{{ user.email }}" id="user-{{ loop.index }}"
+                                    name="selected_users"
+                                    {% if board and user.email in board.users %}checked{% endif %}
+                                    {% if board and user.email == board.created_by %}disabled{% endif %}>
+                                <label class="form-check-label d-flex justify-content-between align-items-center w-100" for="user-{{ loop.index }}">
+                                    <div>
+                                        <span class="fw-bold">{{ user.name }}</span>
+                                        <small class="text-muted d-block">{{ user.email }}</small>
+                                    </div>
+                                    <div>
+                                        {% if board and user.email == board.created_by %}
+                                            <span class="badge bg-primary">Creator</span>
+                                        {% elif current_user.email == user.email %}
+                                            <span class="badge bg-secondary">You</span>
+                                        {% endif %}
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Hidden input to store all selected users -->
+                    <input type="hidden" id="users" name="users" value="{{ current_user.email }}">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="search_user" class="form-label fw-bold">Search Users:</label>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="search_user" placeholder="Filter by name or email">
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg me-2">{% if board %}Update Board{% else %}Create Board{% endif %}</button>
+                    <a href="/" class="btn btn-secondary btn-lg">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to update the hidden users input
+        function updateUsersInput() {
+            const selectedUsers = [];
+            document.querySelectorAll('.user-checkbox:checked').forEach(checkbox => {
+                selectedUsers.push(checkbox.value);
+            });
+            document.getElementById('users').value = selectedUsers.join(',');
+        }
+        
+        // Initialize the hidden input with checked boxes
+        updateUsersInput();
+        
+        // Add event listeners to all checkboxes
+        document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+            if (!checkbox.disabled) {  // Don't add listener to disabled checkboxes (creator)
+                checkbox.addEventListener('change', updateUsersInput);
+            }
+        });
+        
+        // Add search functionality
+        const searchInput = document.getElementById('search_user');
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('#users-list .list-group-item').forEach(item => {
+                const userName = item.querySelector('label .fw-bold').textContent.toLowerCase();
+                const userEmail = item.querySelector('label small').textContent.toLowerCase();
+                
+                if (userName.includes(searchTerm) || userEmail.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

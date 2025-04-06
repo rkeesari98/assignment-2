@@ -1,39 +1,48 @@
 {% extends "home.html" %}
-
 {% block content %}
 <div class="container mt-4">
     <div class="jumbotron bg-light p-5 rounded">
-        <h1 class="display-4">Formula 1 Database</h1>
-        <p class="lead">Explore information about F1 drivers and teams, make comparisons, and more.</p>
+        <h1 class="display-4">Task Manager</h1>
+        <p class="lead">Create and manage tasks with your team efficiently</p>
         <hr class="my-4">
-        <p>Browse, add, and compare drivers and teams from the world of Formula 1.</p>
+        <p>Organize tasks, collaborate with team members, and track progress all in one place.</p>
+        <div class="auth-only d-none">
+            <a href="/taskboards" class="btn btn-primary btn-lg me-2">View Your Boards</a>
+            <a href="/tasksboards/create" class="btn btn-outline-primary btn-lg">Create New Board</a>
+        </div>
+        <div class="non-auth-only">
+            <p class="text-muted">Please log in to create and manage task boards.</p>
+            <button class="btn btn-primary" onclick="openLoginModal()">Login</button>
+        </div>
     </div>
     
     <div class="row mt-5">
-        <div class="col-md-6 mb-4">
-            <div class="card comparison-card h-100">
-                <div class="card-body">
-                    <h3 class="card-title text-f1">Driver Database</h3>
-                    <p class="card-text">Explore driver statistics and information.</p>
-                    <div class="mt-4">
-                        <a href="/drivers" class="btn btn-outline-primary">View All Drivers</a>
-                        <a href="/drivers" class="btn btn-outline-secondary ms-2">Query Drivers</a>
-                        <a href="/compare_drivers" class="btn btn-outline-success ms-2">Compare Drivers</a>
-                    </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-kanban text-primary mb-3" style="font-size: 2.5rem;"></i>
+                    <h3>Organize Your Tasks</h3>
+                    <p class="card-text">Create boards for different projects and categorize your tasks to stay organized.</p>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-6 mb-4">
-            <div class="card comparison-card h-100">
-                <div class="card-body">
-                    <h3 class="card-title text-f1">Team Database</h3>
-                    <p class="card-text">Explore team statistics and information.</p>
-                    <div class="mt-4">
-                        <a href="/teams" class="btn btn-outline-primary">View All Teams</a>
-                        <a href="/teams" class="btn btn-outline-secondary ms-2">Query Teams</a>
-                        <a href="/compare_teams" class="btn btn-outline-success ms-2">Compare Teams</a>
-                    </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people text-primary mb-3" style="font-size: 2.5rem;"></i>
+                    <h3>Collaborate with Teams</h3>
+                    <p class="card-text">Invite team members to your boards and assign tasks to collaborate efficiently.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check2-square text-primary mb-3" style="font-size: 2.5rem;"></i>
+                    <h3>Track Progress</h3>
+                    <p class="card-text">Monitor task statuses, set due dates, and celebrate completed projects.</p>
                 </div>
             </div>
         </div>
@@ -42,22 +51,55 @@
     <div class="row mt-3">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header bg-f1 text-white">
-                    <h4 class="mb-0">Recent Updates</h4>
+                <div class="card-header bg-task text-white">
+                    <h4 class="mb-0">About Task Manager</h4>
                 </div>
                 <div class="card-body">
-                    <p>Welcome to the Formula 1 Database! This application allows you to:</p>
+                    <p>Welcome to Task Manager! This application allows you to:</p>
                     <ul>
-                        <li>View comprehensive information about F1 drivers and teams</li>
-                        <li>Add new drivers and teams (when logged in)</li>
-                        <li>Edit existing information (when logged in)</li>
-                        <li>Compare statistics between drivers or teams</li>
-                        <li>Query the database based on various criteria</li>
+                        <li>Create task boards to organize your projects</li>
+                        <li>Add team members to collaborate on boards</li>
+                        <li>Create, assign, and track tasks</li>
+                        <li>Set due dates and mark tasks as complete</li>
+                        <li>Manage board members and permissions</li>
                     </ul>
-                    <p><strong>Note:</strong> You must be logged in to make changes to the database.</p>
+                    <p><strong>Note:</strong> You must be logged in to create and manage task boards.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if user is authenticated and show/hide appropriate elements
+        function checkAuth() {
+            // This is a placeholder - replace with your actual authentication check
+            const isAuthenticated = window.localStorage.getItem('user') !== null;
+            
+            const authElements = document.querySelectorAll('.auth-only');
+            const nonAuthElements = document.querySelectorAll('.non-auth-only');
+            
+            if (isAuthenticated) {
+                authElements.forEach(el => el.classList.remove('d-none'));
+                nonAuthElements.forEach(el => el.classList.add('d-none'));
+            } else {
+                authElements.forEach(el => el.classList.add('d-none'));
+                nonAuthElements.forEach(el => el.classList.remove('d-none'));
+            }
+        }
+        
+        // Initial check
+        checkAuth();
+        
+        // Listen for auth state changes
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'user') {
+                checkAuth();
+            }
+        });
+    });
+</script>
 {% endblock %}

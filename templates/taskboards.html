@@ -1,0 +1,65 @@
+{% extends "home.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5">Your Task Boards</h1>
+        <a href="/tasksboards/create" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> New Board
+        </a>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    {% if taskboards and taskboards|length > 0 %}
+    <div class="row">
+        {% for board in taskboards %}
+        <div class="col-md-4 mb-4">
+            <div class="card board-card h-100 shadow-sm">
+                <div class="card-body">
+                    {% if board.created_by == user.email %}
+                    <span class="badge bg-success mb-2">Created by You</span>
+                    {% endif %}
+                    <h3 class="card-title">{{ board.title }}</h3>
+                    <p class="card-text text-muted">{{ board.total_mem }} members </p>
+                    <div class="mt-3">
+                        <a href="/taskboards/{{ board.id }}" class="btn btn-outline-primary">
+                            <i class="bi bi-kanban me-1"></i> View Board
+                        </a>
+                        {% if board.created_by == user.email %}
+                        <a href="/taskboards/{{ board.id }}" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- <div class="card-footer bg-white">
+                    <small class="text-muted">Last updated: {{ board.last_updated }}</small>
+                </div> -->
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 my-5">
+        <div class="mb-4">
+            <i class="bi bi-kanban text-muted" style="font-size: 4rem;"></i>
+        </div>
+        <h2>No Task Boards Yet</h2>
+        <p class="text-muted">Create your first task board to get started</p>
+        <a href="/tasksboards/create" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plus-lg me-1"></i> Create New Board
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Any page-specific JavaScript can go here
+</script>
+{% endblock %}
