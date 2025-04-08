@@ -50,3 +50,73 @@ class TaskBoardService:
 
         print(taskboards)
         return taskboards
+    @staticmethod
+    def do_user_have_access(email: str, taskboard_id: str) -> bool:
+        try:
+            doc_ref = firestore_db.collection('task_board').document(taskboard_id)
+            doc = doc_ref.get()
+            if not doc.exists:
+                raise Exception("Invalid Taskboard Id")
+
+            data = doc.to_dict()
+            created_by = data.get("created_by")
+            users = data.get("users", [])
+
+            if email == created_by or email in users:
+                return True
+        except Exception as e:
+            raise Exception("You don't have permission")
+        
+    @staticmethod
+    def update_taskboard(taskboard_id: str, email: str, taskboard: TaskBoard):
+        try:
+            doc_ref = firestore_db.collection('task_board').document(taskboard_id)
+            snapshot = doc_ref.get()
+            
+            if not snapshot.exists:
+                raise Exception("Taskboard does not exist")
+
+            taskboard_doc = snapshot.to_dict()
+
+            if email != taskboard.created_by:
+                raise Exception("Only the creator can edit the board")
+
+            # Check for existing taskboard title (excluding current)
+            existing_taskboards = (
+                firestore_db.collection('task_board')
+                .where('title', '==', taskboard.title)
+                .get()
+            )
+
+            if len(existing_taskboards)>0:
+                raise Exception("task board name already exists please use different one")
+
+            # Validate each user
+            for user_email in taskboard.users:
+                user_check = firestore_db.collection('users').where('email', '==', user_email).limit(1).get()
+                if len(user_check) == 0:
+                    raise Exception(f"User {user_email} not found. Please assign only existing users.")
+
+            doc_ref.update({
+                "title": taskboard.title,
+                "users": taskboard.users
+            })
+
+            updated = doc_ref.get().to_dict()
+
+            # Just return taskboard and taskboard_id without setting `id` in the object
+            #updated_taskboard = TaskBoard(**updated)
+            updated_taskboard = {
+                "users": taskboard.users,
+                "created_by": taskboard.created_by,
+                "title": taskboard.title,
+                "id": taskboard_id
+            }
+            print("in service method")
+            print(updated_taskboard)
+            return updated_taskboard
+
+        except Exception as e:
+            raise Exception(f"Error updating taskboard: {str(e)}")
+        
+    

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Any, Dict
 from models import Task
 from taskboard_service import TaskBoardService
@@ -100,3 +100,29 @@ class TaskService:
         except Exception as e:
             raise Exception(f"Error getting tasks: {e}")
 
+    @staticmethod
+    def mark_task_as_complete(task_id: str):
+        try:
+            doc_ref = firestore_db.collection('tasks').document(task_id)
+            task = doc_ref.get()
+            if not task.exists:
+                raise Exception("Invalid task id")
+            current_datetime = datetime.now()
+            doc_ref.update({
+                "status": "completed",
+                "due_date": current_datetime.date().isoformat(), 
+                "due_time": current_datetime.time().strftime("%H:%M:%S")  
+            })
+        except Exception as e:
+            raise Exception(str(e))
+
+    @staticmethod
+    def delete_task(task_id:str):
+        try:
+            doc_ref = firestore_db.collection('tasks').document(task_id)
+            task = doc_ref.get()
+            if not task.exists:
+                raise Exception("Invalid task id")
+            doc_ref.delete() 
+        except Exception as e:
+            raise Exception(str(e))

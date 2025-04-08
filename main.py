@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Request,Form, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import google.oauth2.id_token
@@ -137,35 +137,81 @@ def create_taskboards(request:Request,task_board:TaskBoard=Depends(taskboard_for
         )
     
 @app.get("/taskboards/{task_board_id}")
-def edit_taskboards(request: Request, task_board_id: str):
+def get_taskboard_details(request: Request, task_board_id: str, error: Optional[str] = None):
     if not is_logged_in(request):
         return RedirectResponse(url="/", status_code=303)
+    
     print("it is here")
     try:
+        # Decode the error if it exists
+        
         task_board = TaskBoardService.get_task_board(task_board_id)
         if not task_board:
-            raise Exception("invalid task board id")
+            raise ValueError("Invalid task board ID")
+        
         users_ref = firestore_db.collection("users")
         users_docs = users_ref.stream()
         users = [user.to_dict() for user in users_docs]
+        
         user_info = get_user_info(request)
         tasks = TaskService.get_tasks(task_board_id)
-        return templates.TemplateResponse("add-task-board.html", 
-                {"request": request,
-                "users":users,
-                "current_user":user_info,
-                "board": task_board,
-                "tasks":tasks
-                })
+        
+        return templates.TemplateResponse("add-task-board.html", {
+            "request": request,
+            "users": users,
+            "current_user": user_info,
+            "board": task_board,
+            "tasks": tasks,
+            "error": error  # Pass the decoded error to the template
+        })
 
     except Exception as e:
-        print("Error while fetching taskboard:", e)
+        
         return RedirectResponse(
-            url=f"/tasksboards/create?error={str(e)}",
+            url=f"/taskboards/create?error={str(e)}",
             status_code=303
         )
 
+@app.post("/taskboards/{task_board_id}")
+def edit_taskboards(request: Request, task_board_id: str, taskboard: TaskBoard = Depends(taskboard_form)):
+    if not is_logged_in(request):
+        return RedirectResponse(url="/", status_code=303)
+    
+    users_ref = firestore_db.collection("users")
+    users_docs = users_ref.stream()
+    user_info = get_user_info(request)
+    users = [user.to_dict() for user in users_docs]
+    
+    try:
+        user = insert_into_user_firestore(request)
+        print("in update before service call")
+        # Unpack the tuple returned by update_taskboard
+        task_board = TaskBoardService.update_taskboard(task_board_id, user['email'], taskboard)
+        
+        if not task_board:
+            raise ValueError("Invalid task board ID")
+        
+        tasks = TaskService.get_tasks(task_board_id)
 
+        return templates.TemplateResponse("add-task-board.html", {
+            "request": request,
+            "users": users,
+            "current_user": user_info,
+            "board": task_board,
+            "tasks": tasks
+        })
+
+    except Exception as e:
+        task_board = TaskBoardService.get_task_board(task_board_id)
+        tasks = TaskService.get_tasks(task_board_id)
+        return templates.TemplateResponse("add-task-board.html", {
+            "request": request,
+            "users": users,
+            "current_user": user_info,
+            "board": task_board,
+            "tasks": tasks,
+            "error": str(e) 
+        })
 
 
 def task_form(
@@ -204,7 +250,7 @@ def task_form(
         print(f"Error in task_form: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/task_boards/{task_board_id}/tasks", response_class=RedirectResponse)
+@app.post("/taskboards/{task_board_id}/tasks", response_class=RedirectResponse)
 def create_task(
     request: Request,
     task_board_id: str,
@@ -245,3 +291,49 @@ def update_task(request:Request,task_board_id:str,task_id:str,task:Task):
             status_code=303
         )
     
+
+@app.post("/taskboards/{taskboard_id}/tasks/{task_id}/toggle-complete")
+def mark_task_completion(request: Request, taskboard_id: str, task_id: str):
+    try:
+        if not is_logged_in(request):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+        user = insert_into_user_firestore(request)
+        if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
+            return JSONResponse(status_code=403, content={"error": "Permission denied"})
+
+        TaskService.mark_task_as_complete(task_id)
+        return JSONResponse(status_code=200, content={"message": "Task marked as completed successfully"})
+
+    except Exception as e:
+        print(e)
+        return JSONResponse(status_code=500, content={"error": str(e)})
+        
+    
+@app.delete("/taskboards/{taskboard_id}/tasks/{task_id}")
+def delete_task(request:Request,taskboard_id:str,task_id:str):
+    try:
+        if not is_logged_in(request):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+        user = insert_into_user_firestore(request)
+        if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
+            return JSONResponse(status_code=403, content={"error": "Permission denied"})
+        TaskService.delete_task(task_id)
+        return JSONResponse(status_code=200, content={"message": "Task deleted successfully"})
+        
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+@app.delete("/taskboards/{taskboard_id}")
+def delete_taskboard(request:Request,taskboard_id:str):
+    try:
+        if not is_logged_in(request):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+        TaskBoardService.delete_taskboard(taskboard_id)
+        return RedirectResponse(
+            url=f"/taskboards",
+            status_code=303
+        )
+    except Exception as e:
+        pass
