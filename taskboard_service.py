@@ -12,9 +12,13 @@ firebase_request_adapter = requests.Request()
 class TaskBoardService:
     @staticmethod
     def create_task_board(request:Request,task_board:TaskBoard):
-        existing_task_board = firestore_db.collection('task_board').where(field_path='name', op_string='==', value=task_board.title).limit(1).get()
-        if len(existing_task_board) > 0:
-            raise Exception("Task board name already exists please use different one")
+        existing_taskboards = (
+            firestore_db.collection('task_board')
+            .where('title', '==', task_board.title)
+            .get()
+        )
+        if len(existing_taskboards)>0:
+            raise Exception("name already exists.please use a different one")
         for user in task_board.users:
             user_exist = firestore_db.collection('users').where(field_path='email',op_string='==',value=user).limit(1).get()
             if len(user_exist)<=0:
@@ -81,16 +85,15 @@ class TaskBoardService:
             if email != taskboard.created_by:
                 raise Exception("Only the creator can edit the board")
 
-            # Check for existing taskboard title (excluding current)
             existing_taskboards = (
                 firestore_db.collection('task_board')
                 .where('title', '==', taskboard.title)
                 .get()
             )
 
-            if taskboard_doc['title'] != taskboard.title:
-                if len(existing_taskboards)>0:
-                    raise Exception("task board name already exists please use different one")
+            for doc in existing_taskboards:
+                if doc.id != taskboard_id:
+                    raise Exception("Name already exists. Please use a different one")
 
             # Validate each user
             for user_email in taskboard.users:

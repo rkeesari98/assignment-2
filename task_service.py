@@ -126,3 +126,36 @@ class TaskService:
             doc_ref.delete() 
         except Exception as e:
             raise Exception(str(e))
+    @staticmethod
+    def get_task(task_id):
+        try:
+            task_ref = firestore_db.collection("tasks").document(task_id)
+            task = task_ref.get()
+            
+            if not task.exists:
+                return None
+                
+            task_data = task.to_dict()
+            task_data["id"] = task_id
+            
+            # Format dates/times for frontend
+            if task_data.get("due_date"):
+                # Make sure we're using datetime module
+                from datetime import date
+                if isinstance(task_data["due_date"], date):
+                    task_data["due_date"] = task_data["due_date"].strftime('%Y-%m-%d')
+                    
+            if task_data.get("due_time"):
+                from datetime import time
+                if isinstance(task_data["due_time"], time):
+                    task_data["due_time"] = task_data["due_time"].strftime('%H:%M')
+                    
+            if task_data.get("completed_at"):
+                from datetime import datetime
+                if isinstance(task_data["completed_at"], datetime):
+                    task_data["completed_at"] = task_data["completed_at"].strftime('%b %d, %Y at %I:%M %p')
+            
+            return task_data
+        except Exception as e:
+            print(f"Error getting task: {e}")
+            raise Exception(f"Error retrieving task: {str(e)}")

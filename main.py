@@ -123,18 +123,26 @@ def taskboard_form(title: str = Form(...), created_by: str = Form(...), users: s
     
 @app.post("/taskboards/create",response_class=HTMLResponse)
 def create_taskboards(request:Request,task_board:TaskBoard=Depends(taskboard_form)):
+    users_ref = firestore_db.collection("users")
+    users_docs = users_ref.stream()
+    users = [user.to_dict() for user in users_docs]
+    user_info = get_user_info(request)
     try:
         TaskBoardService.create_task_board(request,task_board)
         return RedirectResponse(
-            url="/",
+            url="/taskboards",
             status_code=303
         )
     except Exception as e:
         print(e)
-        return RedirectResponse(
-            url=f"/taskboards/create?error={str(e)}",
-            status_code=303
-        )
+        return templates.TemplateResponse(
+           "add-task-board.html", 
+            {"request": request,
+             "users":users,
+             "current_user":user_info,
+             "board": None,
+             "error":str(e)
+        })
     
 @app.get("/taskboards/{task_board_id}")
 def get_taskboard_details(request: Request, task_board_id: str, error: Optional[str] = None):
@@ -343,3 +351,23 @@ def delete_taskboard(request:Request,taskboard_id:str):
             url=f"/taskboards",
             status_code=303
         )
+    
+@app.get("/taskboards/{taskboard_id}/tasks/{task_id}")
+def get_task_details(request: Request, taskboard_id: str, task_id: str):
+    try:
+        if not is_logged_in(request):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+        user = insert_into_user_firestore(request)
+        if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
+            return JSONResponse(status_code=403, content={"error": "Permission denied"})
+            
+        # Get task details from the task service
+        task = TaskService.get_task(task_id)
+        if not task:
+            return JSONResponse(status_code=404, content={"error": "Task not found"})
+            
+        return JSONResponse(status_code=200, content=task)
+    except Exception as e:
+        print(f"Error retrieving task details: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
