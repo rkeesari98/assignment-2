@@ -28,7 +28,9 @@ class TaskBoardService:
             doc = doc_ref.get()
             if not doc.exists:
                 raise Exception("Invalid Taskboard Id")
-            return doc.to_dict()
+            data = doc.to_dict()
+            data['id'] = doc.id  # add document id to the data
+            return data
         except Exception as e:
             print(f"Error retrieving taskboard: {e}")
             raise

@@ -1,11 +1,13 @@
-from typing import Dict, List, Optional
-from fastapi import FastAPI, Request,Form, Depends
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from fastapi import FastAPI, HTTPException, Request,Form, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import google.oauth2.id_token
 from google.auth.transport import requests
 from google.cloud import firestore
+from pydantic import ValidationError
 import starlette.status as status
 from fastapi.responses import RedirectResponse
 from models import Task, TaskBoard
@@ -147,11 +149,13 @@ def edit_taskboards(request: Request, task_board_id: str):
         users_docs = users_ref.stream()
         users = [user.to_dict() for user in users_docs]
         user_info = get_user_info(request)
+        tasks = TaskService.get_tasks(task_board_id)
         return templates.TemplateResponse("add-task-board.html", 
                 {"request": request,
                 "users":users,
                 "current_user":user_info,
-                "board": task_board
+                "board": task_board,
+                "tasks":tasks
                 })
 
     except Exception as e:
@@ -162,17 +166,68 @@ def edit_taskboards(request: Request, task_board_id: str):
         )
 
 
-@app.post("/task_boards/{task_board_id}/tasks",response_class=RedirectResponse)
-def create_task(request:Request,task:Task):
+
+
+def task_form(
+    title: str = Form(...),
+    status: str = Form(...),
+    details: str = Form(default=""),
+    assigned_to: List[str] = Form(default=[]),
+    board_id: str = Form(...),
+    due_date: Optional[str] = Form(None),
+    due_time: Optional[str] = Form(None)
+) -> Task:
     try:
+        # Only convert date/time if values are provided
+        due_date_obj = None
+        if due_date and due_date.strip():
+            due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+        
+        due_time_obj = None
+        if due_time and due_time.strip():
+            due_time_obj = datetime.strptime(due_time, '%H:%M').time()
+        
+        # Create Task object
+        return Task(
+            title=title,
+            status=status,
+            details=details,
+            assigned_to=assigned_to if assigned_to else [],
+            board_id=board_id,
+            due_date=due_date_obj,
+            due_time=due_time_obj
+        )
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        print(f"Error in task_form: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/task_boards/{task_board_id}/tasks", response_class=RedirectResponse)
+def create_task(
+    request: Request,
+    task_board_id: str,
+    task: Task = Depends(task_form)
+):
+    try:
+        print(f"Creating task for board {task_board_id}")
+        print(f"Task data: {task}")
+        
+        if task.board_id != task_board_id:
+            task.board_id = task_board_id
+        
         TaskService.create_task(task)
+        
+        # Fixed URL path
         return RedirectResponse(
-            url="/",
+            url=f"/taskboards/{task_board_id}",
             status_code=303
         )
     except Exception as e:
+        print(f"Error creating task: {e}")
         return RedirectResponse(
-            url=f"/?error={str(e)}",
+            url=f"/taskboards/{task_board_id}?error={str(e)}",
             status_code=303
         )
     
