@@ -121,7 +121,7 @@ def taskboard_form(title: str = Form(...), created_by: str = Form(...), users: s
     users_list = users.split(',') if users else []
     return TaskBoard(title=title, created_by=created_by, users=users_list)
     
-@app.post("/tasksboards/create",response_class=HTMLResponse)
+@app.post("/taskboards/create",response_class=HTMLResponse)
 def create_taskboards(request:Request,task_board:TaskBoard=Depends(taskboard_form)):
     try:
         TaskBoardService.create_task_board(request,task_board)
@@ -132,7 +132,7 @@ def create_taskboards(request:Request,task_board:TaskBoard=Depends(taskboard_for
     except Exception as e:
         print(e)
         return RedirectResponse(
-            url=f"/tasksboards/create?error={str(e)}",
+            url=f"/taskboards/create?error={str(e)}",
             status_code=303
         )
     
@@ -325,15 +325,21 @@ def delete_task(request:Request,taskboard_id:str,task_id:str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     
-@app.delete("/taskboards/{taskboard_id}")
+@app.post("/taskboards/{taskboard_id}/delete",response_class=RedirectResponse)
 def delete_taskboard(request:Request,taskboard_id:str):
     try:
+        print("hitttt")
         if not is_logged_in(request):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-        TaskBoardService.delete_taskboard(taskboard_id)
+        user = insert_into_user_firestore(request)
+        TaskBoardService.delete_taskboard(taskboard_id,user['email'])
         return RedirectResponse(
             url=f"/taskboards",
             status_code=303
         )
     except Exception as e:
-        pass
+        print("Error while deleting:", str(e))
+        return RedirectResponse(
+            url=f"/taskboards",
+            status_code=303
+        )

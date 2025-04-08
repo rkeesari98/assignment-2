@@ -88,8 +88,9 @@ class TaskBoardService:
                 .get()
             )
 
-            if len(existing_taskboards)>0:
-                raise Exception("task board name already exists please use different one")
+            if taskboard_doc['title'] != taskboard.title:
+                if len(existing_taskboards)>0:
+                    raise Exception("task board name already exists please use different one")
 
             # Validate each user
             for user_email in taskboard.users:
@@ -119,4 +120,25 @@ class TaskBoardService:
         except Exception as e:
             raise Exception(f"Error updating taskboard: {str(e)}")
         
-    
+    @staticmethod
+    def delete_taskboard(taskboard_id: str, email: str):
+        try:
+            doc_ref = firestore_db.collection('task_board').document(taskboard_id)
+            snapshot = doc_ref.get()
+
+            if not snapshot.exists:
+                raise Exception("Taskboard does not exist")
+
+            taskboard_data = snapshot.to_dict()
+
+            if taskboard_data.get("created_by") != email:
+                raise Exception("Only the creator of the taskboard can delete the board")
+
+            if len(taskboard_data.get("users"))>1:
+                raise Exception("Remove all users from the taskboard before deleting it")
+
+            doc_ref.delete()
+            return {"message": "Taskboard deleted successfully", "id": taskboard_id}
+
+        except Exception as e:
+            raise Exception(f"Error deleting taskboard: {str(e)}")
