@@ -6,6 +6,7 @@
     {% set is_creator = board and current_user.email == board.created_by %}
     {% set is_new_board = not board %}
     {% set can_edit = is_creator or is_new_board %}
+    {% set is_board_member = board and current_user.email in board.users %}
     
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="display-5">
@@ -30,8 +31,9 @@
     </div>
     
     {% if error %}
-    <div class="alert alert-danger">
+    <div class="alert alert-danger alert-dismissible fade show">
         <strong>Error:</strong> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     {% endif %}
     
@@ -163,7 +165,8 @@
                                                id="task-{{ task.id }}"
                                                data-task-id="{{ task.id }}"
                                                {% if task.status == 'completed' %}checked{% endif %}
-                                               {% if not can_edit and task.assigned_to and current_user.email not in task.assigned_to %}disabled{% endif %}>
+                                               {% if not is_board_member %}disabled
+                                               {% endif %}
                                     </div>
                                 </td>
                                 <td>
@@ -209,13 +212,15 @@
                                                 data-bs-target="#viewTaskModal">
                                             <i class="bi bi-eye"></i>
                                         </button>
-                                        {% if can_edit or (task.assigned_to and current_user.email in task.assigned_to) %}
+                                        {% if is_board_member and task.status != 'completed' %}
                                         <button type="button" class="btn btn-outline-secondary edit-task-btn" 
                                                 data-task-id="{{ task.id }}" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#editTaskModal">
                                             <i class="bi bi-pencil"></i>
                                         </button>
+                                        {% endif %}
+                                        {% if is_board_member %}
                                         <button type="button" class="btn btn-outline-danger delete-task-btn"
                                                 data-task-id="{{ task.id }}"
                                                 data-bs-toggle="modal"
@@ -279,6 +284,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Error message container - will be populated by JS when needed -->
+                    <div id="add-task-error" class="alert alert-danger mb-3" style="display: none;">
+                        <strong>Error:</strong> <span id="add-task-error-message"></span>
+                    </div>
+                    
                     <input type="hidden" name="board_id" value="{{ board.id if board else '' }}">
                     
                     <div class="mb-3">
@@ -396,6 +406,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Error message container for edit form -->
+                    <div id="edit-task-error" class="alert alert-danger mb-3" style="display: none;">
+                        <strong>Error:</strong> <span id="edit-task-error-message"></span>
+                    </div>
+                    
                     <input type="hidden" name="task_id" id="edit_task_id">
                     <input type="hidden" name="board_id" value="{{ board.id if board else '' }}">
                     
@@ -515,7 +530,73 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // =======================
+        // Helper functions
+        // =======================
+
+        // Function to get URL parameters
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+        // Function to show error in add task modal
+        function showAddTaskError(message) {
+            const errorDiv = document.getElementById('add-task-error');
+            const errorMessage = document.getElementById('add-task-error-message');
+            
+            errorMessage.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Function to show error in edit task modal
+        function showEditTaskError(message) {
+            const errorDiv = document.getElementById('edit-task-error');
+            const errorMessage = document.getElementById('edit-task-error-message');
+            
+            errorMessage.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Function to clear errors
+        function clearModalErrors() {
+            // Clear add task errors
+            const addTaskError = document.getElementById('add-task-error');
+            if (addTaskError) {
+                addTaskError.style.display = 'none';
+            }
+            
+            // Clear edit task errors
+            const editTaskError = document.getElementById('edit-task-error');
+            if (editTaskError) {
+                editTaskError.style.display = 'none';
+            }
+        }
+
+        // =======================
+        // Check for URL error parameter on page load
+        // =======================
+        const urlError = getUrlParameter('error');
+        
+        if (urlError) {
+            // If the error is about duplicate task names, open the add task modal and show error
+            if (urlError.includes('Tasks in the same board must have different names')) {
+                const addTaskModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
+                addTaskModal.show();
+                showAddTaskError(urlError);
+                
+                // Clear the URL parameter to prevent it from showing on refresh
+                const url = new URL(window.location);
+                url.searchParams.delete('error');
+                window.history.replaceState({}, '', url);
+            }
+        }
+
+        // =======================
         // Board Management JS
+        // =======================
         const canEdit = document.querySelector('input[name="title"]:not([readonly])') !== null;
         
         if (canEdit) {
@@ -558,7 +639,9 @@
             }
         }
         
+        // =======================
         // Task Management JS
+        // =======================
         
         // Function to update task counters
         function updateTaskCounters() {
@@ -762,27 +845,27 @@
             });
         });
         
-        // Handle Add Task form submission
+        // Handle Add Task form submission with improved error handling
         const addTaskForm = document.getElementById('addTaskForm');
         if (addTaskForm) {
             addTaskForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
+                // Clear any previous errors
+                clearModalErrors();
+                
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 if (!boardId) {
-                    alert('Error: Board ID is missing. Please save the board first.');
+                    showAddTaskError('Error: Board ID is missing. Please save the board first.');
                     return;
                 }
                 
-                // Create FormData object for proper form submission
+                // Create FormData object for form submission
                 const formData = new FormData(addTaskForm);
                 
                 // Get assigned users and append them to formData
-                // (FormData automatically handles multiple values with the same name)
                 const assignedCheckboxes = document.querySelectorAll('.task-assigned-checkbox:checked');
-                // Remove any existing assigned_to entries to avoid duplicates
                 formData.delete('assigned_to');
-                // Add each checked user
                 assignedCheckboxes.forEach(checkbox => {
                     formData.append('assigned_to', checkbox.value);
                 });
@@ -790,37 +873,49 @@
                 // Check if task is being added as completed
                 const taskStatus = formData.get('status');
                 if (taskStatus === 'completed') {
-                    // Set completed_at to current time
                     const now = new Date();
                     formData.append('completed_at', now.toISOString());
                 }
                 
-                // Submit as form data instead of JSON
+                // Use fetch with proper content headers for JSON response
                 fetch(`/taskboards/${boardId}/tasks`, {
                     method: 'POST',
-                    body: formData  // Send as FormData, not JSON
+                    headers: {
+                        'Accept': 'application/json, text/html'
+                    },
+                    body: formData
                 })
                 .then(response => {
+                    // Check for JSON response
+                    const contentType = response.headers.get('content-type');
+                    const isJson = contentType && contentType.includes('application/json');
+                    
                     if (response.redirected) {
                         window.location.href = response.url;
-                        return;
+                        return { success: true };
                     }
                     
                     if (!response.ok) {
-                        return response.text().then(text => {
-                            throw new Error(text || `HTTP error! Status: ${response.status}`);
-                        });
+                        if (isJson) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || `Error: ${response.status}`);
+                            });
+                        } else {
+                            return response.text().then(text => {
+                                throw new Error(text || `HTTP error! Status: ${response.status}`);
+                            });
+                        }
                     }
                     
-                    try {
+                    if (isJson) {
                         return response.json();
-                    } catch (e) {
+                    } else {
                         return { success: true };
                     }
                 })
                 .then(data => {
                     if (data && data.success === false) {
-                        alert(data.message || 'Failed to add task');
+                        showAddTaskError(data.message || 'Failed to add task');
                     } else {
                         // Close modal and refresh page to show the new task
                         const modal = bootstrap.Modal.getInstance(document.getElementById('addTaskModal'));
@@ -830,7 +925,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while adding the task: ' + error.message);
+                    showAddTaskError(error.message || 'An error occurred while adding the task');
                 });
             });
         }
@@ -840,6 +935,9 @@
             button.addEventListener('click', function() {
                 const taskId = this.dataset.taskId;
                 const boardId = document.querySelector('input[name="board_id"]').value;
+                
+                // Clear any previous errors
+                clearModalErrors();
                 
                 // Check if this task is completed
                 const taskRow = this.closest('tr');
@@ -899,29 +997,29 @@
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('Failed to load task details. Please try again.');
+                        showEditTaskError('Failed to load task details. Please try again.');
                     });
             });
         });
         
-        // Handle Edit Task form submission
+        // Handle Edit Task form submission with improved error handling
         const editTaskForm = document.getElementById('editTaskForm');
         if (editTaskForm) {
             editTaskForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
+                // Clear any previous errors
+                clearModalErrors();
+                
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 const taskId = document.getElementById('edit_task_id').value;
                 
-                // Create FormData object for proper form submission
+                // Create FormData object for form submission
                 const formData = new FormData(editTaskForm);
                 
                 // Get assigned users and append them to formData
-                // (FormData automatically handles multiple values with the same name)
                 const assignedCheckboxes = document.querySelectorAll('.edit-task-assigned-checkbox:checked');
-                // Remove any existing assigned_to entries to avoid duplicates
                 formData.delete('assigned_to');
-                // Add each checked user
                 assignedCheckboxes.forEach(checkbox => {
                     formData.append('assigned_to', checkbox.value);
                 });
@@ -938,32 +1036,45 @@
                     formData.append('completed_at', now.toISOString());
                 }
                 
-                // Update the task using FormData
+                // Update the task with improved error handling
                 fetch(`/taskboards/${boardId}/tasks/${taskId}`, {
-                    method: 'POST',  // Change to POST for form data
-                    body: formData   // Send as FormData, not JSON
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json, text/html'
+                    },
+                    body: formData
                 })
                 .then(response => {
+                    // Check for JSON response
+                    const contentType = response.headers.get('content-type');
+                    const isJson = contentType && contentType.includes('application/json');
+                    
                     if (response.redirected) {
                         window.location.href = response.url;
-                        return;
+                        return { success: true };
                     }
                     
                     if (!response.ok) {
-                        return response.text().then(text => {
-                            throw new Error(text || `HTTP error! Status: ${response.status}`);
-                        });
+                        if (isJson) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || `Error: ${response.status}`);
+                            });
+                        } else {
+                            return response.text().then(text => {
+                                throw new Error(text || `HTTP error! Status: ${response.status}`);
+                            });
+                        }
                     }
                     
-                    try {
+                    if (isJson) {
                         return response.json();
-                    } catch (e) {
+                    } else {
                         return { success: true };
                     }
                 })
                 .then(data => {
                     if (data && data.success === false) {
-                        alert(data.message || 'Failed to update task');
+                        showEditTaskError(data.message || 'Failed to update task');
                     } else {
                         // Close modal and refresh the page
                         const modal = bootstrap.Modal.getInstance(document.getElementById('editTaskModal'));
@@ -973,7 +1084,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while updating the task: ' + error.message);
+                    showEditTaskError(error.message || 'An error occurred while updating the task');
                 });
             });
         }
@@ -1001,18 +1112,29 @@
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 
                 fetch(`/taskboards/${boardId}/tasks/${taskId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || `HTTP error! Status: ${response.status}`);
+                            });
+                        } else {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
                     }
                     
-                    try {
+                    // Try to parse as JSON, but don't fail if it's not JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
                         return response.json();
-                    } catch (e) {
-                        return { success: true };
                     }
+                    return { success: true };
                 })
                 .then(data => {
                     // Close modal
@@ -1068,6 +1190,8 @@
         
         // Initialize task counters
         updateTaskCounters();
+        
+        // Auto-dismiss alerts after 5 seconds
         const alerts = document.querySelectorAll('.alert-dismissible');
         alerts.forEach(alert => {
             const bsAlert = new bootstrap.Alert(alert);

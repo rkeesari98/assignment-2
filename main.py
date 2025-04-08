@@ -55,6 +55,19 @@ def insert_into_user_firestore(request:Request):
     except Exception as e:
         return None
 
+def get_user(request:Request):
+    id_token = request.cookies.get("token")
+    if not id_token:
+        return None
+    try:
+        user_token = google.oauth2.id_token.verify_firebase_token(id_token, firebase_request_adapter)
+        if user_token:
+            user = {}
+            user["email"] =  user_token.get("email")
+            user["name"]  = user["email"].split("@")[0]
+            return user
+    except Exception as e:
+        return None
 
 def get_user_info(request:Request)->Dict:
     id_token = request.cookies.get("token")
@@ -72,25 +85,20 @@ def get_user_info(request:Request)->Dict:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
+    insert_into_user_firestore(request)
     return templates.TemplateResponse(
         "main.html",
         {"request": request}
     )
 
 
-def add_user_to_firestore(request:Request):
-    user = {
-        "email":request.user.email,
-        "name":request.user.email.split("@")[0]
-    }
-    firestore_db.collection('users').add(user)
 
 @app.get("/taskboards",response_class=RedirectResponse)
 def get_taskboards(request:Request):
     if not is_logged_in(request):
         return RedirectResponse(url="/")
     try:
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         taskboards = TaskBoardService.get_taskboards(user["email"])
         return templates.TemplateResponse(
             "taskboards.html",
@@ -105,7 +113,7 @@ def get_taskboards(request:Request):
 
 @app.get("/tasksboards/create",response_class=RedirectResponse)
 def create_taskboards(request:Request):
-    insert_into_user_firestore(request)
+    
     users_ref = firestore_db.collection("users")
     users_docs = users_ref.stream()
     users = [user.to_dict() for user in users_docs]
@@ -191,7 +199,7 @@ def edit_taskboards(request: Request, task_board_id: str, taskboard: TaskBoard =
     users = [user.to_dict() for user in users_docs]
     
     try:
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         print("in update before service call")
         # Unpack the tuple returned by update_taskboard
         task_board = TaskBoardService.update_taskboard(task_board_id, user['email'], taskboard)
@@ -306,7 +314,7 @@ def mark_task_completion(request: Request, taskboard_id: str, task_id: str):
         if not is_logged_in(request):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
 
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
             return JSONResponse(status_code=403, content={"error": "Permission denied"})
 
@@ -324,7 +332,7 @@ def delete_task(request:Request,taskboard_id:str,task_id:str):
         if not is_logged_in(request):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
 
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
             return JSONResponse(status_code=403, content={"error": "Permission denied"})
         TaskService.delete_task(task_id)
@@ -339,7 +347,7 @@ def delete_taskboard(request:Request,taskboard_id:str):
         print("hitttt")
         if not is_logged_in(request):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         TaskBoardService.delete_taskboard(taskboard_id,user['email'])
         return RedirectResponse(
             url=f"/taskboards",
@@ -358,11 +366,10 @@ def get_task_details(request: Request, taskboard_id: str, task_id: str):
         if not is_logged_in(request):
             return JSONResponse(status_code=401, content={"error": "Unauthorized"})
 
-        user = insert_into_user_firestore(request)
+        user = get_user(request)
         if not TaskBoardService.do_user_have_access(user["email"], taskboard_id):
             return JSONResponse(status_code=403, content={"error": "Permission denied"})
             
-        # Get task details from the task service
         task = TaskService.get_task(task_id)
         if not task:
             return JSONResponse(status_code=404, content={"error": "Task not found"})
@@ -371,3 +378,25 @@ def get_task_details(request: Request, taskboard_id: str, task_id: str):
     except Exception as e:
         print(f"Error retrieving task details: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+    
+@app.post("/taskboards/{task_board_id}/tasks/{task_id}", response_class=RedirectResponse)
+def update_task(request: Request, task_board_id: str, task_id: str, task: Task = Depends(task_form)):
+    try:
+        user = get_user(request)
+        if not TaskBoardService.do_user_have_access(user["email"], task_board_id):
+            return RedirectResponse(
+                url=f"/taskboards/{task_board_id}?error=Permission denied",
+                status_code=303
+            )
+            
+        TaskService.update_task(task_board_id,task_id,task)
+        
+        return RedirectResponse(
+            url=f"/taskboards/{task_board_id}",
+            status_code=303
+        )
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/taskboards/{task_board_id}?error={str(e)}",
+            status_code=303
+        )

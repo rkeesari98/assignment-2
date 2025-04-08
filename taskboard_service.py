@@ -5,6 +5,7 @@ from google.auth.transport import requests
 from google.cloud import firestore
 
 
+
 firestore_db = firestore.Client()
 
 firebase_request_adapter = requests.Request()
@@ -72,6 +73,28 @@ class TaskBoardService:
             raise Exception("You don't have permission")
         
     @staticmethod
+    def remove_user_from_tasks(users: list, taskboard_id: str):
+        try:
+            matching_tasks = (
+                firestore_db.collection("tasks")
+                .where("board_id", "==", taskboard_id)
+                .get()
+            )
+
+            for task_doc in matching_tasks:
+                task_data = task_doc.to_dict()
+                assigned_users = task_data.get("assigned_to", [])
+
+                updated_assignees = [user for user in assigned_users if user in users]
+
+                firestore_db.collection("tasks").document(task_doc.id).update({
+                    "assigned_to": updated_assignees
+                })
+
+        except Exception as e:
+            raise Exception(f"Error while updating task assignments: {str(e)}")
+        
+    @staticmethod
     def update_taskboard(taskboard_id: str, email: str, taskboard: TaskBoard):
         try:
             doc_ref = firestore_db.collection('task_board').document(taskboard_id)
@@ -118,6 +141,7 @@ class TaskBoardService:
             }
             print("in service method")
             print(updated_taskboard)
+            TaskBoardService.remove_user_from_tasks(updated_taskboard['users'],taskboard_id)
             return updated_taskboard
 
         except Exception as e:
