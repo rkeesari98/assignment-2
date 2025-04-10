@@ -37,7 +37,7 @@
     </div>
     {% endif %}
     
-    <!-- Board Details -->
+    
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light">
             <h4 class="mb-0">Board Details</h4>
@@ -57,7 +57,7 @@
                     </div>
                 </div>
                 
-                <!-- Creator information field - hidden but included for completeness -->
+                
                 <input type="hidden" id="created_by" name="created_by" value="{{ current_user.email }}">
                 
                 <div class="mb-4 mt-4">
@@ -68,7 +68,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Display list of all available users with checkboxes -->
+                   
                     <div class="list-group" id="users-list">
                         {% for user in users %}
                         <div class="list-group-item">
@@ -96,7 +96,7 @@
                         {% endfor %}
                     </div>
                     
-                    <!-- Hidden input to store all selected users -->
+                   
                     <input type="hidden" id="users" name="users" value="{{ current_user.email }}">
                 </div>
                 
@@ -124,7 +124,7 @@
         </div>
     </div>
     
-    <!-- Tasks Section - Only show if this is an existing board -->
+   
     {% if board %}
     <div class="card shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -250,7 +250,7 @@
         </div>
     </div>
     
-    <!-- Board Management Section - Only shown to board creator -->
+    
     {% if is_creator and board %}
     <div class="card shadow-sm mt-4">
         <div class="card-header bg-light">
@@ -274,7 +274,7 @@
     {% endif %}
 </div>
 
-<!-- Add Task Modal -->
+
 <div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -357,7 +357,7 @@
     </div>
 </div>
 
-<!-- View Task Modal -->
+
 <div class="modal fade" id="viewTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -396,7 +396,7 @@
     </div>
 </div>
 
-<!-- Edit Task Modal -->
+
 <div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -480,7 +480,7 @@
     </div>
 </div>
 
-<!-- Delete Task Modal -->
+
 <div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -500,7 +500,7 @@
     </div>
 </div>
 
-<!-- Delete Board Confirmation Modal -->
+
 <div class="modal fade" id="deleteBoardModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -530,11 +530,7 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // =======================
-        // Helper functions
-        // =======================
-
-        // Function to get URL parameters
+       
         function getUrlParameter(name) {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
             const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -542,7 +538,7 @@
             return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
         }
 
-        // Function to show error in add task modal
+        
         function showAddTaskError(message) {
             const errorDiv = document.getElementById('add-task-error');
             const errorMessage = document.getElementById('add-task-error-message');
@@ -551,7 +547,7 @@
             errorDiv.style.display = 'block';
         }
 
-        // Function to show error in edit task modal
+       
         function showEditTaskError(message) {
             const errorDiv = document.getElementById('edit-task-error');
             const errorMessage = document.getElementById('edit-task-error-message');
@@ -560,7 +556,7 @@
             errorDiv.style.display = 'block';
         }
 
-        // Function to clear errors
+       
         function clearModalErrors() {
             // Clear add task errors
             const addTaskError = document.getElementById('add-task-error');
@@ -574,10 +570,6 @@
                 editTaskError.style.display = 'none';
             }
         }
-
-        // =======================
-        // Check for URL error parameter on page load
-        // =======================
         const urlError = getUrlParameter('error');
         
         if (urlError) {
@@ -587,16 +579,14 @@
                 addTaskModal.show();
                 showAddTaskError(urlError);
                 
-                // Clear the URL parameter to prevent it from showing on refresh
+                
                 const url = new URL(window.location);
                 url.searchParams.delete('error');
                 window.history.replaceState({}, '', url);
             }
         }
 
-        // =======================
-        // Board Management JS
-        // =======================
+       
         const canEdit = document.querySelector('input[name="title"]:not([readonly])') !== null;
         
         if (canEdit) {
@@ -609,10 +599,10 @@
                 document.getElementById('users').value = selectedUsers.join(',');
             }
             
-            // Initialize the hidden input with checked boxes
+            
             updateUsersInput();
             
-            // Add event listeners to all checkboxes
+            
             document.querySelectorAll('.user-checkbox').forEach(checkbox => {
                 // Skip disabled checkboxes (e.g. creator)
                 if (!checkbox.disabled) {
@@ -620,7 +610,7 @@
                 }
             });
             
-            // Add search functionality
+            
             const searchInput = document.getElementById('search_user');
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
@@ -639,11 +629,7 @@
             }
         }
         
-        // =======================
-        // Task Management JS
-        // =======================
-        
-        // Function to update task counters
+       
         function updateTaskCounters() {
             const totalTasks = document.querySelectorAll('#tasks-table-body tr').length;
             const completedTasks = document.querySelectorAll('.task-complete-checkbox:checked').length;
@@ -661,12 +647,12 @@
             }
         }
         
-        // Disable edit buttons for already completed tasks on page load
+        
         document.querySelectorAll('.task-complete-checkbox:checked').forEach(checkbox => {
             // Disable the checkbox to prevent unchecking
             checkbox.disabled = true;
             
-            // Find and disable the edit button for this task
+            
             const taskRow = checkbox.closest('tr');
             const editBtn = taskRow.querySelector('.edit-task-btn');
             if (editBtn) {
@@ -676,7 +662,7 @@
             }
         });
         
-        // Handle task completion checkboxes
+        
         document.querySelectorAll('.task-complete-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const taskId = this.dataset.taskId;
@@ -686,31 +672,31 @@
                 const taskStatus = taskRow.querySelector('td:nth-child(3) .badge');
                 const editBtn = taskRow.querySelector('.edit-task-btn');
                 
-                // If trying to uncheck a completed task, prevent this action
+                
                 if (!isCompleted) {
-                    this.checked = true; // Force it back to checked
-                    return; // Exit the function early
+                    this.checked = true; 
+                    return; 
                 }
                 
-                // Optimistic UI update
+                
                 taskTitle.classList.add('text-decoration-line-through', 'text-muted');
                 taskStatus.className = 'badge bg-success';
                 taskStatus.textContent = 'Completed';
                 
-                // Disable the checkbox to prevent unchecking
+               
                 this.disabled = true;
                 
-                // Disable edit button
+               
                 if (editBtn) {
                     editBtn.disabled = true;
                     editBtn.classList.add('disabled');
                     editBtn.setAttribute('title', 'Completed tasks cannot be edited');
                 }
                 
-                // Update counters
+               
                 updateTaskCounters();
                 
-                // Send update to server
+               
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 fetch(`/taskboards/${boardId}/tasks/${taskId}/toggle-complete`, {
                     method: 'POST',
@@ -767,7 +753,7 @@
             });
         });
         
-        // Handle View Task
+        
         document.querySelectorAll('.view-task-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const taskId = this.dataset.taskId;
@@ -781,7 +767,7 @@
                 document.getElementById('view-task-assigned').innerHTML = '';
                 document.getElementById('view-task-completed-section').classList.add('d-none');
                 
-                // Fetch task details
+                
                 fetch(`/taskboards/${boardId}/tasks/${taskId}`)
                     .then(response => {
                         if (!response.ok) {
@@ -807,7 +793,7 @@
                             statusElement.classList.add('text-secondary');
                         }
                         
-                        // Due date
+                        
                         if (task.due_date) {
                             let dueText = task.due_date;
                             if (task.due_time) {
@@ -818,7 +804,6 @@
                             document.getElementById('view-task-due').textContent = 'No due date';
                         }
                         
-                        // Assigned users
                         const assignedContainer = document.getElementById('view-task-assigned');
                         assignedContainer.innerHTML = '';
                         if (task.assigned_to && task.assigned_to.length > 0) {
@@ -845,7 +830,7 @@
             });
         });
         
-        // Handle Add Task form submission with improved error handling
+       
         const addTaskForm = document.getElementById('addTaskForm');
         if (addTaskForm) {
             addTaskForm.addEventListener('submit', function(e) {
@@ -860,24 +845,24 @@
                     return;
                 }
                 
-                // Create FormData object for form submission
+              
                 const formData = new FormData(addTaskForm);
                 
-                // Get assigned users and append them to formData
+               
                 const assignedCheckboxes = document.querySelectorAll('.task-assigned-checkbox:checked');
                 formData.delete('assigned_to');
                 assignedCheckboxes.forEach(checkbox => {
                     formData.append('assigned_to', checkbox.value);
                 });
                 
-                // Check if task is being added as completed
+              
                 const taskStatus = formData.get('status');
                 if (taskStatus === 'completed') {
                     const now = new Date();
                     formData.append('completed_at', now.toISOString());
                 }
                 
-                // Use fetch with proper content headers for JSON response
+              
                 fetch(`/taskboards/${boardId}/tasks`, {
                     method: 'POST',
                     headers: {
@@ -930,13 +915,13 @@
             });
         }
 
-        // Handle Edit Task button clicks
+      
         document.querySelectorAll('.edit-task-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const taskId = this.dataset.taskId;
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 
-                // Clear any previous errors
+               
                 clearModalErrors();
                 
                 // Check if this task is completed
@@ -949,7 +934,7 @@
                     return;
                 }
                 
-                // Reset form
+               
                 document.getElementById('edit_task_id').value = taskId;
                 document.getElementById('edit_task_title').value = '';
                 document.getElementById('edit_task_details').value = '';
@@ -957,12 +942,12 @@
                 document.getElementById('edit_task_due_time').value = '';
                 document.getElementById('edit_task_status').value = 'pending';
                 
-                // Uncheck all assigned users
+             
                 document.querySelectorAll('.edit-task-assigned-checkbox').forEach(checkbox => {
                     checkbox.checked = false;
                 });
                 
-                // Fetch task details
+                
                 fetch(`/taskboards/${boardId}/tasks/${taskId}`)
                     .then(response => {
                         if (!response.ok) {
@@ -1002,7 +987,7 @@
             });
         });
         
-        // Handle Edit Task form submission with improved error handling
+       
         const editTaskForm = document.getElementById('editTaskForm');
         if (editTaskForm) {
             editTaskForm.addEventListener('submit', function(e) {
@@ -1014,17 +999,17 @@
                 const boardId = document.querySelector('input[name="board_id"]').value;
                 const taskId = document.getElementById('edit_task_id').value;
                 
-                // Create FormData object for form submission
+               
                 const formData = new FormData(editTaskForm);
                 
-                // Get assigned users and append them to formData
+               
                 const assignedCheckboxes = document.querySelectorAll('.edit-task-assigned-checkbox:checked');
                 formData.delete('assigned_to');
                 assignedCheckboxes.forEach(checkbox => {
                     formData.append('assigned_to', checkbox.value);
                 });
                 
-                // Check if task is being marked as completed
+                
                 const newStatus = formData.get('status');
                 const taskRow = document.getElementById(`task-row-${taskId}`);
                 const prevStatus = taskRow ? 
@@ -1036,7 +1021,7 @@
                     formData.append('completed_at', now.toISOString());
                 }
                 
-                // Update the task with improved error handling
+                
                 fetch(`/taskboards/${boardId}/tasks/${taskId}`, {
                     method: 'POST',
                     headers: {
@@ -1089,7 +1074,7 @@
             });
         }
         
-        // Handle Delete Task button
+        
         document.querySelectorAll('.delete-task-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const taskId = this.dataset.taskId;
@@ -1104,7 +1089,7 @@
             });
         });
         
-        // Handle Delete Task confirmation
+      
         const confirmDeleteBtn = document.getElementById('confirm-delete-task');
         if (confirmDeleteBtn) {
             confirmDeleteBtn.addEventListener('click', function() {
@@ -1141,15 +1126,15 @@
                     const modal = bootstrap.Modal.getInstance(document.getElementById('deleteTaskModal'));
                     modal.hide();
                     
-                    // Remove the task row from the table
+                   
                     const taskRow = document.getElementById(`task-row-${taskId}`);
                     if (taskRow) {
                         taskRow.remove();
                         
-                        // Update task counters
+                        
                         updateTaskCounters();
                         
-                        // Show empty state if no tasks left
+                       
                         const tasksTable = document.querySelector('#tasks-table-body');
                         if (tasksTable && tasksTable.children.length === 0) {
                             const tableContainer = tasksTable.closest('.table-responsive');
@@ -1167,7 +1152,7 @@
                             `;
                         }
                     } else {
-                        // If we can't find the row, just reload the page
+                      
                         window.location.reload();
                     }
                 })
@@ -1188,10 +1173,10 @@
             });
         }
         
-        // Initialize task counters
+       
         updateTaskCounters();
         
-        // Auto-dismiss alerts after 5 seconds
+      
         const alerts = document.querySelectorAll('.alert-dismissible');
         alerts.forEach(alert => {
             const bsAlert = new bootstrap.Alert(alert);
