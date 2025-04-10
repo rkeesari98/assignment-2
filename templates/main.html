@@ -74,9 +74,9 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Check if user is authenticated and show/hide appropriate elements
+       
         function checkAuth() {
-            // This is a placeholder - replace with your actual authentication check
+         
             const isAuthenticated = window.localStorage.getItem('user') !== null;
             
             const authElements = document.querySelectorAll('.auth-only');
@@ -91,10 +91,10 @@
             }
         }
         
-        // Initial check
+        
         checkAuth();
         
-        // Listen for auth state changes
+        
         window.addEventListener('storage', function(e) {
             if (e.key === 'user') {
                 checkAuth();
