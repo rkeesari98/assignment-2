@@ -18,7 +18,7 @@ class TaskService:
         try:
             TaskBoardService.get_task_board(task.board_id)
 
-            # Using keyword arguments for where queries as recommended
+           
             existing_task = (
                 firestore_db.collection('tasks')
                 .where(filter=firestore.FieldFilter("board_id", "==", task.board_id))
@@ -30,7 +30,7 @@ class TaskService:
             if len(existing_task) > 0:
                 raise Exception("Tasks in the same board must have different names")
 
-            # Use the to_dict method to get Firestore-compatible dict
+            
             task_dict = task.dict(exclude_none=True)
             if task.due_date:
                 task_dict['due_date'] = task.due_date.isoformat()
@@ -74,7 +74,7 @@ class TaskService:
                 task_data = task.to_dict()
                 task_data['id'] = task.id
 
-                # Convert due_date and due_time safely
+               
                 if 'due_date' in task_data:
                     if isinstance(task_data['due_date'], str):
                         try:
