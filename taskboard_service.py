@@ -131,8 +131,7 @@ class TaskBoardService:
 
             updated = doc_ref.get().to_dict()
 
-            # Just return taskboard and taskboard_id without setting `id` in the object
-            #updated_taskboard = TaskBoard(**updated)
+            
             updated_taskboard = {
                 "users": taskboard.users,
                 "created_by": taskboard.created_by,
